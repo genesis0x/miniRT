@@ -1,1 +1,1 @@
-# miniRT
+# Cub3D

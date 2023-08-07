@@ -6,7 +6,7 @@
 /*   By: hahadiou <hahadiou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/07/24 11:48:56 by hahadiou          #+#    #+#             */
-/*   Updated: 2023/08/07 16:49:49 by hahadiou         ###   ########.fr       */
+/*   Updated: 2023/08/07 17:29:45 by hahadiou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -526,7 +526,7 @@ int	vec3_to_rgb(t_vec3 color)
     int g = (int)(255.999 * color.y);
     int b = (int)(255.999 * color.z);
     
-    return (r << 16) | (g << 8) | b;
+    return (0x000000ff | r << 24 | g << 16 | b << 8);
 }
 
 t_vec3	vec3_add(t_vec3 vec1, t_vec3 vec2)
@@ -568,6 +568,18 @@ double intersect_sphere(t_sphere *sphere, t_vec3 ray_origin, t_vec3 ray_dir)
 // 	return (t_sphere);
 // }
 
+double intersect_plane(t_plane *plane, t_vec3 ray_origin, t_vec3 ray_dir) {
+    double denominator = vec3_dot(plane->normal, ray_dir);
+    if (fabs(denominator) > 1e-6) {
+        t_vec3 point_to_plane = vec3_sub(plane->point, ray_origin);
+        double t = vec3_dot(point_to_plane, plane->normal) / denominator;
+        if (t >= 0) {
+            return t;
+        }
+    }
+    return -1.0; // No intersection
+}
+
 double intersect_objects(t_scene *scene, t_vec3 ray_origin, t_vec3 ray_dir)
 {
     double closest_t = -1.0;
@@ -583,7 +595,13 @@ double intersect_objects(t_scene *scene, t_vec3 ray_origin, t_vec3 ray_dir)
     }
 
     // Similar checks for other objects
-
+	// if (scene->plane.set)
+	// {
+	// 	double	t = intersect_plane(&(scene->plane), ray_origin, ray_dir);
+	// 	if (t > 0 && (closest_t < 0 || t < closest_t))
+    //         closest_t = t;
+	// }
+	
     return (closest_t);
 }
 
@@ -601,17 +619,23 @@ t_vec3 shade_object(t_scene *scene, t_light *light, t_vec3 hit_point, t_vec3 sur
 
     // Check for shadows by casting a ray from the hit point to the light source
     bool in_shadow = false;
+	t_sphere	*curr = scene->object.sp_lst;
     // for (int i = 0; i < num_objects_in_scene; i++)
 	// {
+	while (curr)
+	{
         // Check for intersection between the hit point and the object
         double t = intersect_objects(scene, hit_point, light_dir);
         if (t > 0 && t < light_distance) 
 		{
             in_shadow = true;
-            // break;
+            break;
         }
+		curr = curr->next;
+	}
     // }
 
+	
     // Calculate ambient and diffuse lighting components
     t_vec3 ambient = vec3_scale(scene->amb.color, scene->amb.brightness);
     t_vec3 diffuse = (in_shadow) ? (t_vec3){0, 0, 0} : color_scale(light->ratio * fmax(0.0, vec3_dot(surface_normal, light_dir)), scene->object.sp_lst->color);
@@ -636,7 +660,11 @@ t_vec3 shade_objects(t_scene *scene, t_vec3 hit_point, t_vec3 surface_normal, t_
     }
 
     // Similar shading for other objects
-
+	if (scene->plane.set)
+	{
+		t_vec3 shading = shade_object(scene, &scene->light, hit_point, surface_normal, ray_dir);
+		return (shading);
+	}
     return (shading);
 }
 
@@ -677,6 +705,7 @@ void render_scene(t_scene *scene)
 
             // Cast the ray from camera position and check intersection with the sphere
             double t = intersect_objects(scene, scene->cam.pos, ray_dir);
+			double t_plane = intersect_plane(&scene->plane, scene->cam.pos, ray_dir);
 			// Cast the ray from the camera position and check intersection with the plane
             // double t_plane = intersect_plane(&scene->plane, scene->cam.pos, ray_dir);
             // if (t > 0)
@@ -699,8 +728,17 @@ void render_scene(t_scene *scene)
 
                 mlx_put_pixel(image, x, y, vec3_to_rgb(shading));
             }
+			else if (t_plane >= 0)
+			{
+				// Intersection with a plane occurred, set pixel color using shading function
+                t_vec3 hit_point = vec3_add(scene->cam.pos, vec3_scale(ray_dir, t_plane));
+                t_vec3 surface_normal = scene->plane.normal; // Plane's normal is its surface normal
+                t_vec3 shading = shade_objects(scene, hit_point, surface_normal, ray_dir);
+                mlx_put_pixel(image, x, y, vec3_to_rgb(shading));
+			}
 			else
 			{
+				// mlx_put_pixel(image, x, y, vec3_to_rgb((t_vec3){.x=255, .y=255, .z=255}));
 				mlx_put_pixel(image, x, y, vec3_to_rgb(scene->amb.color));
 			}
         }

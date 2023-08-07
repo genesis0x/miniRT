@@ -1,112 +1,85 @@
-typedef struct s_object
-{
-    char type; // Type identifier for the object ('s' for sphere, 'p' for plane, 'c' for cylinder)
-    void *data; // Pointer to the specific object data (t_sphere*, t_plane*, t_cylinder*)
-    struct s_object *next; // Pointer to the next object in the linked list
-} t_object;
+// Add this structure definition for planes
+typedef struct s_plane {
+    t_vec3 point;
+    t_vec3 normal;
+    t_vec3 color;
+    bool set;
+} t_plane;
 
-struct s_scene
-{
-    int width;
-    int height;
-    t_am_light amb;
-    t_cam cam;
-    t_light light;
-    t_object *objects; // Linked list of objects in the scene
-};
+// Modify your t_scene structure to include a plane object
+typedef struct s_scene {
+    // ... other fields ...
+    t_plane plane;
+    // ... other fields ...
+} t_scene;
 
-// ... (other code remains the same)
+// Modify your parsing_plane function to correctly parse plane information
+void parse_plane(t_scene *scene, char **split) {
+    // ... existing parsing logic ...
 
-void parse_ids(t_scene *scene, char **split)
-{
-    if (!strcmp(split[0], "C"))
-        parse_cam(scene, split);
-    else if (!strcmp(split[0], "A"))
-        parse_amb(scene, split);
-    else if (!strcmp(split[0], "L"))
-        parse_light(scene, split);
-    else if (!strcmp(split[0], "sp"))
-        parse_sphere(scene, split);
-    else if (!strcmp(split[0], "pl"))
-        parse_plane(scene, split);
-    else if (!strcmp(split[0], "cy"))
-        parse_cylinder(scene, split);
-    else
-        dprintf(2, "Invalid Id\n");
+    parse_vec3(split[1], &(scene->plane.point));
+    parse_vec3(split[2], &(scene->plane.normal));
+    parse_color(split[3], &(scene->plane.color));
+    scene->plane.set = true;
 }
 
-void parse_sphere(t_scene *scene, char **split)
-{
-    // ... (parse sphere parameters and create t_sphere object)
-
-    t_sphere *sphere = malloc(sizeof(t_sphere));
-    sphere->center = center;
-    sphere->radius = radius;
-    sphere->color = color;
-    sphere->set = true;
-
-    // Create a new object node and add it to the linked list
-    t_object *new_object = malloc(sizeof(t_object));
-    new_object->type = 's';
-    new_object->data = sphere;
-    new_object->next = scene->objects;
-    scene->objects = new_object;
+// Implement an intersection test function for planes
+double intersect_plane(t_plane *plane, t_vec3 ray_origin, t_vec3 ray_dir) {
+    double denominator = vec3_dot(plane->normal, ray_dir);
+    if (fabs(denominator) > 1e-6) {
+        t_vec3 point_to_plane = vec3_sub(plane->point, ray_origin);
+        double t = vec3_dot(point_to_plane, plane->normal) / denominator;
+        if (t >= 0) {
+            return t;
+        }
+    }
+    return -1.0; // No intersection
 }
 
-void parse_plane(t_scene *scene, char **split)
-{
-    // ... (parse plane parameters and create t_plane object)
+// Modify your shade_objects function to include shading for planes
+t_vec3 shade_objects(t_scene *scene, t_vec3 hit_point, t_vec3 surface_normal, t_vec3 ray_dir) {
+    // ... existing shading logic ...
 
-    t_plane *plane = malloc(sizeof(t_plane));
-    plane->point = point;
-    plane->normal = normal;
-    plane->color = color;
-    plane->set = true;
+    // Iterate through the linked list and shade each object, including planes
+    t_sphere *current_sphere = scene->object.sp_lst;
+    while (current_sphere != NULL) {
+        // ... existing shading logic ...
+        current_sphere = current_sphere->next;
+    }
 
-    // Create a new object node and add it to the linked list
-    t_object *new_object = malloc(sizeof(t_object));
-    new_object->type = 'p';
-    new_object->data = plane;
-    new_object->next = scene->objects;
-    scene->objects = new_object;
+    // Shade the plane if it's set
+    if (scene->plane.set) {
+        t_vec3 shading = shade_object(scene, &scene->light, hit_point, surface_normal, ray_dir);
+        return shading;
+    }
+
+    // ... existing shading logic ...
 }
 
-void parse_cylinder(t_scene *scene, char **split)
-{
-    // ... (parse cylinder parameters and create t_cylinder object)
+// Modify your render_scene function to include planes in the rendering loop
+void render_scene(t_scene *scene) {
+    // ... existing rendering logic ...
 
-    t_cylinder *cylinder = malloc(sizeof(t_cylinder));
-    cylinder->center = center;
-    cylinder->axis = axis;
-    cylinder->diameter = diameter;
-    cylinder->height = height;
-    cylinder->color = color;
-    cylinder->set = true;
+    for (int y = 0; y < 600; y++) {
+        for (int x = 0; x < 800; x++) {
+            // ... existing ray casting logic ...
 
-    // Create a new object node and add it to the linked list
-    t_object *new_object = malloc(sizeof(t_object));
-    new_object->type = 'c';
-    new_object->data = cylinder;
-    new_object->next = scene->objects;
-    scene->objects = new_object;
-}
+            double t = intersect_objects(scene, scene->cam.pos, ray_dir);
+            double t_plane = intersect_plane(&scene->plane, scene->cam.pos, ray_dir);
 
-// ... (other parsing functions and main loop)
-
-void cleanup_scene(t_scene *scene)
-{
-    // Free the memory allocated for the linked list of objects
-    t_object *current = scene->objects;
-    while (current != NULL)
-    {
-        t_object *temp = current;
-        current = current->next;
-        if (temp->type == 's')
-            free(temp->data); // Free t_sphere object
-        else if (temp->type == 'p')
-            free(temp->data); // Free t_plane object
-        else if (temp->type == 'c')
-            free(temp->data); // Free t_cylinder object
-        free(temp); // Free object node
+            if (t > 0) {
+                // Intersection with other objects occurred
+                // ... existing shading and rendering logic ...
+            } else if (t_plane >= 0) {
+                // Intersection with a plane occurred, set pixel color using shading function
+                t_vec3 hit_point = vec3_add(scene->cam.pos, vec3_scale(ray_dir, t_plane));
+                t_vec3 surface_normal = scene->plane.normal; // Plane's normal is its surface normal
+                t_vec3 shading = shade_objects(scene, hit_point, surface_normal, ray_dir);
+                mlx_put_pixel(image, x, y, vec3_to_rgb(shading));
+            } else {
+                // No intersection, set pixel color to ambient color
+                mlx_put_pixel(image, x, y, vec3_to_rgb(scene->amb.color));
+            }
+        }
     }
 }

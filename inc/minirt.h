@@ -13,11 +13,11 @@
 #ifndef MINIRT_H
 # define MINIRT_H
 
-# include <mlx.h>
+# include "../MLX42/include/MLX42/MLX42.h"
 # include <math.h>
 # include <string.h>
-
-# include "structs.h"
+# include <stdbool.h>
+# include "utils.h"
 
 #define WIDTH 800
 #define HEIGHT 600

@@ -6,14 +6,13 @@
 #    By: hahadiou <hahadiou@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/05/08 17:11:01 by hahadiou          #+#    #+#              #
-#    Updated: 2023/07/19 19:31:00 by hahadiou         ###   ########.fr        #
+#    Updated: 2023/08/06 20:10:55 by hahadiou         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 CC		= cc
-FLAGS	= -Wall -Wextra -Werror -IINC
-MLX_FLAGS	= -Lmlx -lmlx -framework OpenGL -framework AppKit
-
+FLAGS	=   -IINC -fsanitize=address -g -Wunreachable-code -Ofast
+LIBMLX = MLX42/build/libmlx42.a
 NAME	= miniRT
 
 INC	= inc
@@ -21,7 +20,7 @@ SRC_PATH	= src
 UTILS_PATH	= utils
 OBJ_PATH	= obj
 
-SRCS = main.c \
+SRCS = parsing.c \
 		#parser_core.c \
 		parser_get_data.c \
 		parser_get_elem.c \
@@ -56,9 +55,8 @@ bonus: $(NAMEB)
 
 $(NAME): $(OBJ)
 	@echo "$(YELLOW)Compiling Utils...$(NOC)"
-	@make -sC $(UTILS_PATH)
-	@echo "$(YELLOW)Compiling cub3D...$(NOC)"
-	@$(CC) $(FLAGS) $(MLX_FLAGS) -o $@ $^
+	@echo "$(YELLOW)Compiling miniRT...$(NOC)"
+	@$(CC) $(FLAGS) $(LIBMLX) -Iinclude -lglfw -L"/Users/hahadiou/goinfre/homebrew/opt/glfw/lib" src/libft.a -o $@ $^
 	@echo "$(GREEN)$@$(NOC)"
 
 $(OBJ_PATH)/%.o: $(SRC_PATH)/%.c $(INC)/minirt.h
@@ -80,3 +78,4 @@ fclean: clean
 re: fclean all
 
 .PHONY:	all bonus clean fclean re
+

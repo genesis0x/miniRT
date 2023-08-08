@@ -1,85 +1,141 @@
-// Add this structure definition for planes
-typedef struct s_plane {
-    t_vec3 point;
-    t_vec3 normal;
-    t_vec3 color;
+// ... (Previous code)
+
+struct s_light
+{
     bool set;
-} t_plane;
+    t_vec3 pos;
+    double ratio;
+    t_vec3 color;
+    t_light *next;
+};
 
-// Modify your t_scene structure to include a plane object
-typedef struct s_scene {
-    // ... other fields ...
-    t_plane plane;
-    // ... other fields ...
-} t_scene;
+// ... (Other structures and functions)
 
-// Modify your parsing_plane function to correctly parse plane information
-void parse_plane(t_scene *scene, char **split) {
-    // ... existing parsing logic ...
-
-    parse_vec3(split[1], &(scene->plane.point));
-    parse_vec3(split[2], &(scene->plane.normal));
-    parse_color(split[3], &(scene->plane.color));
-    scene->plane.set = true;
+// Function to create a new light node
+t_light *create_light_node()
+{
+    t_light *new_node = (t_light *)malloc(sizeof(t_light));
+    if (new_node == NULL)
+        return NULL;
+    new_node->next = NULL;
+    return new_node;
 }
 
-// Implement an intersection test function for planes
-double intersect_plane(t_plane *plane, t_vec3 ray_origin, t_vec3 ray_dir) {
-    double denominator = vec3_dot(plane->normal, ray_dir);
-    if (fabs(denominator) > 1e-6) {
-        t_vec3 point_to_plane = vec3_sub(plane->point, ray_origin);
-        double t = vec3_dot(point_to_plane, plane->normal) / denominator;
-        if (t >= 0) {
-            return t;
-        }
+// Function to add a new light to the back of the light list
+void add_light_to_back(t_light **lst, t_light *new_node)
+{
+    if (*lst == NULL)
+        *lst = new_node;
+    else
+    {
+        t_light *current = *lst;
+        while (current->next != NULL)
+            current = current->next;
+        current->next = new_node;
     }
-    return -1.0; // No intersection
 }
 
-// Modify your shade_objects function to include shading for planes
-t_vec3 shade_objects(t_scene *scene, t_vec3 hit_point, t_vec3 surface_normal, t_vec3 ray_dir) {
-    // ... existing shading logic ...
+// Function to parse light data from split and add to the scene's light list
+void parse_light(t_scene *scene, char **split)
+{
+    if (ft_array_len(split) != 4)
+        dprintf(2, "Invalid Number of args in param %s: ", split[0]);
+    t_light *new_light = create_light_node();
+    parse_vec3(split[1], &(new_light->pos));
+    stod(split[2], &(new_light->ratio));
+    parse_color(split[3], &(new_light->color));
+    new_light->color = color_scale(new_light->ratio, new_light->color);
+    new_light->set = true;
+    add_light_to_back(&scene->light, new_light);
+}
 
-    // Iterate through the linked list and shade each object, including planes
+// ... (Other parsing functions)
+
+// Function to calculate shading from multiple light sources
+t_vec3 shade_objects(t_scene *scene, t_vec3 hit_point, t_vec3 surface_normal, t_vec3 ray_dir)
+{
+    t_vec3 shading = (t_vec3){0, 0, 0};
+
+    // Iterate through the linked list and shade each object
     t_sphere *current_sphere = scene->object.sp_lst;
-    while (current_sphere != NULL) {
-        // ... existing shading logic ...
+    while (current_sphere != NULL)
+    {
+        if (vec3_length(vec3_sub(hit_point, current_sphere->center)) <= current_sphere->radius)
+            shading = vec3_add(shading, shade_object(scene, scene->light, hit_point, surface_normal, ray_dir));
         current_sphere = current_sphere->next;
     }
 
-    // Shade the plane if it's set
-    if (scene->plane.set) {
-        t_vec3 shading = shade_object(scene, &scene->light, hit_point, surface_normal, ray_dir);
-        return shading;
+    // Iterate through the linked list of lights and calculate shading from each light
+    t_light *current_light = scene->light;
+    while (current_light != NULL)
+    {
+        t_vec3 light_shading = shade_object(scene, current_light, hit_point, surface_normal, ray_dir);
+        shading = vec3_add(shading, light_shading);
+        current_light = current_light->next;
     }
 
-    // ... existing shading logic ...
+    // Similar shading for other objects
+
+    return shading;
 }
 
-// Modify your render_scene function to include planes in the rendering loop
-void render_scene(t_scene *scene) {
-    // ... existing rendering logic ...
+// ... (Other functions)
 
-    for (int y = 0; y < 600; y++) {
-        for (int x = 0; x < 800; x++) {
-            // ... existing ray casting logic ...
+// Main rendering loop
+void render_scene(t_scene *scene)
+{
+    // ... (Previous rendering code)
 
+    for (int y = 0; y < 600; y++)
+    {
+        for (int x = 0; x < 800; x++)
+        {
+            // ... (Previous ray tracing code)
+
+            // Cast the ray from camera position and check intersection with objects
             double t = intersect_objects(scene, scene->cam.pos, ray_dir);
+            // Cast the ray from camera position and check intersection with plane
             double t_plane = intersect_plane(&scene->plane, scene->cam.pos, ray_dir);
 
-            if (t > 0) {
-                // Intersection with other objects occurred
-                // ... existing shading and rendering logic ...
-            } else if (t_plane >= 0) {
-                // Intersection with a plane occurred, set pixel color using shading function
-                t_vec3 hit_point = vec3_add(scene->cam.pos, vec3_scale(ray_dir, t_plane));
-                t_vec3 surface_normal = scene->plane.normal; // Plane's normal is its surface normal
+            if (t > 0)
+            {
+                // Intersection occurred, set pixel color to the object's shading
+                t_vec3 hit_point = vec3_add(scene->cam.pos, vec3_scale(ray_dir, t));
+                t_vec3 surface_normal = calculate_surface_normal(scene, hit_point);
                 t_vec3 shading = shade_objects(scene, hit_point, surface_normal, ray_dir);
                 mlx_put_pixel(image, x, y, vec3_to_rgb(shading));
-            } else {
-                // No intersection, set pixel color to ambient color
+            }
+            else if (t_plane >= 0)
+            {
+                // Intersection with a plane occurred, set pixel color using shading function
+                t_vec3 hit_point = vec3_add(scene->cam.pos, vec3_scale(ray_dir, t_plane));
+                t_vec3 surface_normal = scene->plane.normal;
+                t_vec3 shading = shade_objects(scene, hit_point, surface_normal, ray_dir);
+                mlx_put_pixel(image, x, y, vec3_to_rgb(shading));
+            }
+            else
+            {
                 mlx_put_pixel(image, x, y, vec3_to_rgb(scene->amb.color));
             }
         }
     }
+}
+
+int main()
+{
+    // ... (Previous main function code)
+
+    // Initialize the scene
+    t_scene scene;
+    init_scene(&scene);
+
+    // Parse scene data from a file
+    parse_scene(&scene, "scene.txt");
+
+    // Render the scene
+    render_scene(&scene);
+
+    // ... (Previous main function code)
+
+    return 0;
 }

@@ -6,7 +6,7 @@
 /*   By: hahadiou <hahadiou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/07/24 11:48:56 by hahadiou          #+#    #+#             */
-/*   Updated: 2023/08/07 17:29:45 by hahadiou         ###   ########.fr       */
+/*   Updated: 2023/08/08 13:17:46 by hahadiou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -165,6 +165,7 @@ struct s_light
 	t_vec3	pos;
 	double	ratio;
 	t_vec3	color;
+	t_light	*next;
 };
 
 struct s_sphere	
@@ -210,8 +211,7 @@ struct s_scene
     int			height;
     t_am_light 	amb;
     t_cam 		cam;
-    t_light 	light;
-    t_sphere 	sphere;
+    t_light 	*light;
 	t_plane		plane;
 	t_cylinder	cylinder;
 };
@@ -364,15 +364,39 @@ void	parse_amb(t_scene *scene, char **split)
 	scene->amb.set = true;
 }
 
+t_light	*create_light_node()
+{
+	t_light	*new_node = (t_light *)malloc(sizeof(t_light));
+	if (new_node == NULL)
+		return (NULL);
+	new_node->next = NULL;
+	return (new_node);
+}
+
+void add_light_to_back(t_light **lst, t_light *new_node)
+{
+    if (*lst == NULL) 
+        *lst = new_node;
+	else 
+	{
+        t_light *current = *lst;
+        while (current->next != NULL)
+            current = current->next;
+        current->next = new_node;
+    }
+}
+
 void	parse_light(t_scene *scene, char **split)
 {
 	if (ft_array_len(split) != 4)
 		dprintf(2, "Invalid Number of args in param %s: ", split[0]);
-	parse_vec3(split[1], &(scene->light.pos));
-	stod(split[2], &(scene->light.ratio));
-	parse_color(split[3], &(scene->light.color));
-	scene->light.color = color_scale(scene->light.ratio, scene->light.color);
-	scene->light.set = true;
+	t_light	*new_light = create_light_node();
+	parse_vec3(split[1], &(new_light->pos));
+	stod(split[2], &(new_light->ratio));
+	parse_color(split[3], &(new_light->color));
+	new_light->color = color_scale(new_light->ratio, new_light->color);
+	new_light->set = true;
+	add_light_to_back(&scene->light, new_light);
 }
 
 t_sphere *create_sphere_node() {
@@ -400,8 +424,8 @@ void add_sphere_to_back(t_sphere **lst, t_sphere *new_node)
 
 void	parse_sphere(t_scene *scene, char **split)
 {
-	if (ft_array_len(split) != 4)
-		dprintf(2, "Invalid Number of args in param %s: ", split[0]);
+	if (ft_array_len(split) != 3)
+		dprintf(2, "Invalid Number of args in param %s: \n", split[0]);
 	t_sphere *new_sphere = create_sphere_node();
 	// add_sphere_to_back(&(scene->object.sp_lst));
 	parse_vec3(split[1], &(new_sphere->center));
@@ -577,7 +601,7 @@ double intersect_plane(t_plane *plane, t_vec3 ray_origin, t_vec3 ray_dir) {
             return t;
         }
     }
-    return -1.0; // No intersection
+    return (-1.0); // No intersection
 }
 
 double intersect_objects(t_scene *scene, t_vec3 ray_origin, t_vec3 ray_dir)
@@ -655,16 +679,26 @@ t_vec3 shade_objects(t_scene *scene, t_vec3 hit_point, t_vec3 surface_normal, t_
     while (current_sphere != NULL)
     {
         if (vec3_length(vec3_sub(hit_point, current_sphere->center)) <= current_sphere->radius)
-            shading = vec3_add(shading, shade_object(scene, &scene->light, hit_point, surface_normal, ray_dir));
+            shading = vec3_add(shading, shade_object(scene, scene->light, hit_point, surface_normal, ray_dir));
         current_sphere = current_sphere->next;
     }
 
     // Similar shading for other objects
 	if (scene->plane.set)
 	{
-		t_vec3 shading = shade_object(scene, &scene->light, hit_point, surface_normal, ray_dir);
+		t_vec3 shading = shade_object(scene, scene->light, hit_point, surface_normal, ray_dir);
 		return (shading);
 	}
+	// Iterate through the linked list of lights and calculate shading from each light
+    t_light *current_light = scene->light;
+    while (current_light)
+    {
+		printf("light in shade_objects: %f\t%f\t%f\n", current_light->pos.x, current_light->pos.y, current_light->pos.z);
+        t_vec3 light_shading = shade_object(scene, current_light, hit_point, surface_normal, ray_dir);
+        shading = vec3_add(shading, light_shading);
+        current_light = current_light->next;
+    }
+
     return (shading);
 }
 
@@ -745,7 +779,7 @@ void render_scene(t_scene *scene)
     }
 }
 
-t_scene	scene;
+t_scene	*scene;
 
 void ft_hook(void* param)
 {
@@ -756,27 +790,27 @@ void ft_hook(void* param)
 		mlx_close_window(mlx);
 	if (mlx_is_key_down(mlx, MLX_KEY_UP))
     {
-        scene.light.pos.y += 2.0;
-		render_scene(&scene);
+        scene->light->pos.y += 2.0;
+		render_scene(scene);
         // image->instances[0].y -= 5;
     }
 	if (mlx_is_key_down(mlx, MLX_KEY_DOWN))
     {
-		scene.light.pos.y -= 2.0;
-		render_scene(&scene);
+		scene->light->pos.y -= 2.0;
+		render_scene(scene);
 		// image->instances[0].y += 5;
     }
 	if (mlx_is_key_down(mlx, MLX_KEY_LEFT))
     {
 		// image->instances[0].x += 5;
-		scene.light.pos.x -= 2.0;
-		render_scene(&scene);
+		scene->light->pos.x -= 2.0;
+		render_scene(scene);
     }
 	if (mlx_is_key_down(mlx, MLX_KEY_RIGHT))
     {
 		// image->instances[0].x += 5;
-		scene.light.pos.x += 2.0;
-		render_scene(&scene);
+		scene->light->pos.x += 2.0;
+		render_scene(scene);
     }
 }
 
@@ -813,65 +847,66 @@ int main(int ac, char **av)
 
 	if (ac != 2)
 		return (1);
-	create_scene(&scene, av[1]);
-	render_scene(&scene);
+	scene = calloc(1, sizeof(t_scene));
+	create_scene(scene, av[1]);
+	render_scene(scene);
 
 	printf("\n");
-	printf("cam_pos_in: %f\n", scene.cam.pos_initial.x);
-	printf("cam_pos_in: %f\n", scene.cam.pos_initial.y);
-	printf("cam_pos_in: %f\n", scene.cam.pos_initial.z);
+	// printf("cam_pos_in: %f\n", scene->cam.pos_initial.x);
+	// printf("cam_pos_in: %f\n", scene.cam.pos_initial.y);
+	// printf("cam_pos_in: %f\n", scene.cam.pos_initial.z);
 	
-	printf("\n");
+	// printf("\n");
 	
-	printf("amb_light: %f\n", scene.amb.color.x);
-	printf("amb_light: %f\n", scene.amb.color.y);
-	printf("amb_light: %f\n", scene.amb.color.z);
+	// printf("amb_light: %f\n", scene.amb.color.x);
+	// printf("amb_light: %f\n", scene.amb.color.y);
+	// printf("amb_light: %f\n", scene.amb.color.z);
 	
-	printf("\n");
+	// printf("\n");
 
-	printf("light_pos: %f\n", scene.light.pos.x);
-	printf("light_pos: %f\n", scene.light.pos.y);
-	printf("light_pos: %f\n", scene.light.pos.z);
+	// printf("light_pos: %f\n", scene.light->pos.x);
+	// printf("light_pos: %f\n", scene.light->pos.y);
+	// printf("light_pos: %f\n", scene.light->pos.z);
 	
-	printf("\n");
+	// printf("\n");
 
-	printf("light_color: %f\n", scene.light.color.x);
-	printf("light_color: %f\n", scene.light.color.y);
-	printf("light_color: %f\n", scene.light.color.z);
+	// printf("light_color: %f\n", scene.light->color.x);
+	// printf("light_color: %f\n", scene.light->color.y);
+	// printf("light_color: %f\n", scene.light->color.z);
 
-	printf("\n");
+	// printf("\n");
 	
-	printf("sphere_center: %f\n", scene.sphere.center.x);
-	printf("sphere_center: %f\n", scene.sphere.center.y);
-	printf("sphere_center: %f\n", scene.sphere.center.z);
-	
-	printf("\n");
-	
-	printf("sphere_radius: %f\n", scene.sphere.radius);
+	// printf("sphere_center: %f\n", scene.sphere.center.x);
+	// printf("sphere_center: %f\n", scene.sphere.center.y);
+	// printf("sphere_center: %f\n", scene.sphere.center.z);
 	
 	printf("\n");
 	
-	printf("plane_coords: %f\n", scene.plane.point.x);
-	printf("plane_coords: %f\n", scene.plane.point.y);
-	printf("plane_coords: %f\n", scene.plane.point.z);
+	// printf("sphere_radius: %f\n", scene.sphere.radius);
 	
 	printf("\n");
+	
+	// printf("plane_coords: %f\n", scene.plane.point.x);
+	// printf("plane_coords: %f\n", scene.plane.point.y);
+	// printf("plane_coords: %f\n", scene.plane.point.z);
+	
+	// printf("\n");
 
-	printf("plane_normal: %f\n", scene.plane.normal.x);
-	printf("plane_normal: %f\n", scene.plane.normal.y);
-	printf("plane_normal: %f\n", scene.plane.normal.z);
+	// printf("plane_normal: %f\n", scene.plane.normal.x);
+	// printf("plane_normal: %f\n", scene.plane.normal.y);
+	// printf("plane_normal: %f\n", scene.plane.normal.z);
 	
-	printf("\n");
+	// printf("\n");
 	
-	printf("sphere_color: %f\n", scene.sphere.color.x);
-	printf("sphere_color: %f\n", scene.sphere.color.y);
-	printf("sphere_color: %f\n", scene.sphere.color.z);
+	// // printf("sphere_color: %f\n", scene.sphere.color.x);
+	// // printf("sphere_color: %f\n", scene.sphere.color.y);
+	// // printf("sphere_color: %f\n", scene.sphere.color.z);
 
-	printf("\n");
+	// printf("\n");
 	
-	printf("plane_color: %f\n", scene.plane.color.x);
-	printf("plane_color: %f\n", scene.plane.color.y);
-	printf("plane_color: %f\n", scene.plane.color.z);
+	// printf("plane_color: %f\n", scene.plane.color.x);
+	// printf("plane_color: %f\n", scene.plane.color.y);
+	// printf("plane_color: %f\n", scene.plane.color.z);
 	
 	printf("\n");
 	

@@ -6,7 +6,7 @@
 /*   By: hahadiou <hahadiou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/07/24 11:48:56 by hahadiou          #+#    #+#             */
-/*   Updated: 2023/08/08 13:17:46 by hahadiou         ###   ########.fr       */
+/*   Updated: 2023/08/10 10:55:10 by hahadiou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,7 @@
 # include <strings.h>
 # include <limits.h>
 # include "minirt.h"
-
+#include <ctype.h>
 
 # ifdef BUFFER_SIZE
 #  if BUFFER_SIZE < 0
@@ -122,111 +122,89 @@ char	*get_next_line(int fd)
 		line.buf[line.pos] = 0;
 	return (line.buf);
 }
-
-
-typedef struct 	s_scene		t_scene;
-typedef struct 	s_set		t_set;
-typedef struct 	s_cam		t_cam;
-typedef struct	s_vec3		t_vec3;
-typedef struct	s_am_light	t_am_light;
-typedef struct	s_light		t_light;
-typedef struct	s_object	t_object;
-typedef struct s_sphere		t_sphere;
-typedef struct s_cylinder	t_cylinder;
-typedef struct s_plane		t_plane;
-
-struct s_vec3
+char	*ft_substr(char const *s, unsigned int start, size_t len)
 {
-	double	x;
-	double	y;
-	double	z;
-};
+	size_t			i;
+	char			*str;
 
-struct s_cam
-{
-	bool	set;
-	t_vec3	pos;
-	t_vec3	dir;
-	t_vec3	pos_initial;
-	t_vec3	dir_initial;
-	int		fov;
-};
+	i = -1;
+	if (!s)
+		return (0);
+	if (start >= strlen(s))
+	{
+		return (calloc(1, 1));
+	}
+	str = (char *)malloc(len + 1);
+	if (!str)
+		return (0);
+	while (++i < len)
+		str[i] = s[start + i];
+	str[i] = '\0';
+	return (str);
+}
 
-struct s_am_light
+static int	ft_countword(char const *s, char c)
 {
-	bool	set;
-	double	brightness;
-	t_vec3	color;
-};
+	int	count;
+	int	i;
 
-struct s_light
-{
-	double	set;
-	t_vec3	pos;
-	double	ratio;
-	t_vec3	color;
-	t_light	*next;
-};
+	count = 0;
+	i = 0;
+	while (s[i])
+	{
+		while (s[i] == c)
+			i++;
+		if (s[i])
+			count++;
+		while (s[i] != c && s[i])
+			i++;
+	}
+	return (count);
+}
 
-struct s_sphere	
+char	**ft_split(char const *s, char c)
 {
-	t_vec3		center;
-	double		radius;
-	t_vec3		color;
-	double		set;
-	t_sphere	*next;
-};
+	char	**strs;
+	int		word_len;
+	int		i;
 
-struct s_plane
-{
-	t_vec3	point;
-	t_vec3	normal;
-	t_vec3	color;
-	double	set;
-	t_plane	*next;
-};
+	if (!s)
+		return (0);
+	strs = (char **)malloc(sizeof(char *) * (ft_countword(s, c) + 1));
+	if (!strs)
+		return (0);
+	i = 0;
+	while (*s)
+	{
+		while (*s == c)
+			++s;
+		if (*s)
+		{
+			word_len = strchr(s, c) - s;
+			if (!strchr(s, c))
+				word_len = strlen(s);
+			strs[i++] = ft_substr(s, 0, word_len);
+			s += word_len;
+		}
+	}
+	strs[i] = 0;
+	return (strs);
+}
 
-struct s_cylinder
-{
-    t_vec3 		center;
-    t_vec3 		axis;
-    double 		diameter;
-    double		height;
-    t_vec3 		color;
-    double 		set;
-	t_cylinder	*next;
-};
 
-struct s_object
+char	*ft_strtrim(char const *s1, char const *set)
 {
-	t_sphere	*sp_lst;
-	t_cylinder	*cy_lst;
-	t_plane		*pl_lst;
-};
+	size_t	len;
 
-struct s_scene
-{
-	t_object	object;
-	int			width;
-    int			height;
-    t_am_light 	amb;
-    t_cam 		cam;
-    t_light 	*light;
-	t_plane		plane;
-	t_cylinder	cylinder;
-};
-
-typedef struct s_mlx
-{
-	mlx_image_t		*image;
-	mlx_t			*mlx;
-}	t_mlx;
-
-typedef struct s_data
-{
-	t_mlx	*mlx;
-	t_scene	*scene;	
-}	t_data;
+	if (!s1 || !set)
+		return (NULL);
+	while (*s1 && strchr(set, *s1))
+		++s1;
+	len = strlen(s1);
+	while (len && strchr(set, s1[len]))
+		len--;
+	return (ft_substr(s1, 0, len + 1));
+}
 
 int	ft_array_len(char **arr)
 {
@@ -238,7 +216,7 @@ int	ft_array_len(char **arr)
 	return (len);
 }
 
-void	stod(char *s, double *res)
+void	stod(char *s, double *res) // done
 {
 	int	i;
 
@@ -247,7 +225,7 @@ void	stod(char *s, double *res)
 		i++;
 	while (s[i])
 	{
-		if (!ft_isdigit(s[i]) && s[i] != '.')
+		if (!isdigit(s[i]) && s[i] != '.')
 		{
 			dprintf(2, "Inv Number\n");
 			exit (1);
@@ -259,7 +237,7 @@ void	stod(char *s, double *res)
 		s = s + 1;
 }
 
-void	stoi(char *s, int min, int max, int *res)
+void	stoi(char *s, int min, int max, int *res) // done
 {
 	int	i;
 
@@ -275,12 +253,12 @@ void	stoi(char *s, int min, int max, int *res)
 		// }
 		i++;
 	}
-	*res = ft_atoi(s);
+	*res = atoi(s);
 	if (*res < min || *res > max)
 		exit (1);
 }
 
-void	parse_vec3(char *s, t_vec3 *vec3)
+void	parse_vec3(char *s, t_vec3 *vec3) // done
 {
 	char	**split;
 
@@ -292,12 +270,12 @@ void	parse_vec3(char *s, t_vec3 *vec3)
 	stod(split[2], &(*vec3).z);
 }
 
-t_vec3	vec3_sub(t_vec3 a, t_vec3 b)
+t_vec3	vec3_sub(t_vec3 a, t_vec3 b) // done
 {
 	return ((t_vec3){a.x - b.x, a.y - b.y, a.z - b.z});
 }
 
-t_vec3	vec3_norm(t_vec3 a)
+t_vec3	vec3_norm(t_vec3 a) // done
 {
 	double	alpha;
 
@@ -305,7 +283,7 @@ t_vec3	vec3_norm(t_vec3 a)
 	return ((t_vec3){alpha * a.x, alpha * a.y, alpha * a.z});
 }
 
-void	parse_cam(t_scene *scene, char **split)
+void	parse_cam(t_scene *scene, char **split) // done
 {
 	t_vec3	look_at;
 	
@@ -324,7 +302,7 @@ void	parse_cam(t_scene *scene, char **split)
 	scene->cam.set = true;
 }
 
-void	parse_color(char *s, t_vec3 *color)
+void	parse_color(char *s, t_vec3 *color) // done
 {
 	char	**split;
 	int		primary;
@@ -349,12 +327,12 @@ void	parse_color(char *s, t_vec3 *color)
 	(*color).z = (double)primary / 255.0;
 }
 
-t_vec3	color_scale(double f, t_vec3 c1)
+t_vec3	color_scale(double f, t_vec3 c1) // done
 {
 	return ((t_vec3){f * c1.x, f * c1.y, f * c1.z});
 }
 
-void	parse_amb(t_scene *scene, char **split)
+void	parse_amb(t_scene *scene, char **split) // done
 {
 	if (ft_array_len(split) != 3)
 		dprintf(2, "Invalid Number of args in param : %s\n", split[0]);
@@ -364,7 +342,7 @@ void	parse_amb(t_scene *scene, char **split)
 	scene->amb.set = true;
 }
 
-t_light	*create_light_node()
+t_light	*create_light_node() // done
 {
 	t_light	*new_node = (t_light *)malloc(sizeof(t_light));
 	if (new_node == NULL)
@@ -373,7 +351,7 @@ t_light	*create_light_node()
 	return (new_node);
 }
 
-void add_light_to_back(t_light **lst, t_light *new_node)
+void add_light_to_back(t_light **lst, t_light *new_node) // done
 {
     if (*lst == NULL) 
         *lst = new_node;
@@ -386,7 +364,7 @@ void add_light_to_back(t_light **lst, t_light *new_node)
     }
 }
 
-void	parse_light(t_scene *scene, char **split)
+void	parse_light(t_scene *scene, char **split) // done
 {
 	if (ft_array_len(split) != 4)
 		dprintf(2, "Invalid Number of args in param %s: ", split[0]);
@@ -399,7 +377,7 @@ void	parse_light(t_scene *scene, char **split)
 	add_light_to_back(&scene->light, new_light);
 }
 
-t_sphere *create_sphere_node() {
+t_sphere *create_sphere_node() { // done
 
 	t_sphere *new_node = (t_sphere *)malloc(sizeof(t_sphere));
     if (new_node == NULL) {
@@ -409,7 +387,7 @@ t_sphere *create_sphere_node() {
     return (new_node);
 }
 
-void add_sphere_to_back(t_sphere **lst, t_sphere *new_node)
+void add_sphere_to_back(t_sphere **lst, t_sphere *new_node) // done
 {
     if (*lst == NULL) 
         *lst = new_node;
@@ -422,7 +400,7 @@ void add_sphere_to_back(t_sphere **lst, t_sphere *new_node)
     }
 }
 
-void	parse_sphere(t_scene *scene, char **split)
+void	parse_sphere(t_scene *scene, char **split) // done
 {
 	if (ft_array_len(split) != 3)
 		dprintf(2, "Invalid Number of args in param %s: \n", split[0]);
@@ -445,7 +423,7 @@ void	parse_sphere(t_scene *scene, char **split)
     // }
 }
 
-void	parse_plane(t_scene *scene, char **split)
+void	parse_plane(t_scene *scene, char **split) // done
 {
 	if (ft_array_len(split) != 4)
 		dprintf(2, "Invalid Number of args in param %s: ", split[0]);
@@ -455,7 +433,7 @@ void	parse_plane(t_scene *scene, char **split)
 	scene->plane.set = true;
 }
 
-void	parse_cylinder(t_scene *scene, char **split)
+void	parse_cylinder(t_scene *scene, char **split) // done
 {
 	if (ft_array_len(split) != 6)
 		dprintf(2, "Invalid Number of args in param %s: ", split[0]);
@@ -467,7 +445,7 @@ void	parse_cylinder(t_scene *scene, char **split)
 	scene->cylinder.set = true;
 }
 
-void	parse_ids(t_scene *scene, char **split)
+void	parse_ids(t_scene *scene, char **split) // done
 {
 	if (!strcmp(split[0], "C"))
 		parse_cam(scene, split);
@@ -485,7 +463,7 @@ void	parse_ids(t_scene *scene, char **split)
 		dprintf(2, "Invalid Id\n");
 }
 
-int	parse_scene(t_scene *scene, char *filename)
+int	parse_scene(t_scene *scene, char *filename) // done
 {
 	int		fd;
 	char	*line[2];
@@ -520,20 +498,9 @@ int	parse_scene(t_scene *scene, char *filename)
 	return (0);
 }
 
-double	vec3_dot(t_vec3 vec1, t_vec3 vec2)
+double	vec3_dot(t_vec3 vec1, t_vec3 vec2) // done
 {
 	return (vec1.x * vec2.x + vec1.y * vec2.y + vec1.z * vec2.z);
-}
-
-unsigned int mlx_rgb(int red, int green, int blue)
-{
-    // Ensure RGB components are within the range [0, 255]
-    red = (red < 0) ? 0 : (red > 255) ? 255 : red;
-    green = (green < 0) ? 0 : (green > 255) ? 255 : green;
-    blue = (blue < 0) ? 0 : (blue > 255) ? 255 : blue;
-
-    // Create the 32-bit color value (8 bits for each component)
-    return (red << 16) | (green << 8) | blue;
 }
 
 double deg_to_rad(double degrees)
@@ -544,7 +511,7 @@ double deg_to_rad(double degrees)
 mlx_t*	mlx;
 static mlx_image_t* image;
 
-int	vec3_to_rgb(t_vec3 color)
+int	vec3_to_rgb(t_vec3 color) // done
 {
     int r = (int)(255.999 * color.x);
     int g = (int)(255.999 * color.y);
@@ -553,7 +520,7 @@ int	vec3_to_rgb(t_vec3 color)
     return (0x000000ff | r << 24 | g << 16 | b << 8);
 }
 
-t_vec3	vec3_add(t_vec3 vec1, t_vec3 vec2)
+t_vec3	vec3_add(t_vec3 vec1, t_vec3 vec2) // done
 {
 	t_vec3 result;
     
@@ -563,7 +530,7 @@ t_vec3	vec3_add(t_vec3 vec1, t_vec3 vec2)
 	return (result);
 }
 
-t_vec3 vec3_scale(t_vec3 vec, double scalar)
+t_vec3 vec3_scale(t_vec3 vec, double scalar) // done
 {
     return (t_vec3){vec.x * scalar, vec.y * scalar, vec.z * scalar};
 }
@@ -598,7 +565,7 @@ double intersect_plane(t_plane *plane, t_vec3 ray_origin, t_vec3 ray_dir) {
         t_vec3 point_to_plane = vec3_sub(plane->point, ray_origin);
         double t = vec3_dot(point_to_plane, plane->normal) / denominator;
         if (t >= 0) {
-            return t;
+            return (t);
         }
     }
     return (-1.0); // No intersection
@@ -781,7 +748,7 @@ void render_scene(t_scene *scene)
 
 t_scene	*scene;
 
-void ft_hook(void* param)
+void ft_hook(void* param) // done
 {
 	mlx_t* mlx = param;
 
@@ -814,7 +781,7 @@ void ft_hook(void* param)
     }
 }
 
-void create_scene(t_scene *scene, char *filename)
+void create_scene(t_scene *scene, char *filename) // done
 {
     bzero(scene, sizeof(t_scene));
     printf("-----PARSING FILE----: %s\n", filename);

@@ -1,34 +1,18 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   ft_substr.c                                        :+:      :+:    :+:   */
+/*   vec3_len.c                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: hahadiou <hahadiou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2022/09/29 18:13:53 by hahadiou          #+#    #+#             */
-/*   Updated: 2023/08/10 10:52:36 by hahadiou         ###   ########.fr       */
+/*   Created: 2023/08/10 10:41:06 by hahadiou          #+#    #+#             */
+/*   Updated: 2023/08/10 10:41:23 by hahadiou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "utils.h"
+# include "minirt.h"
 
-char	*ft_substr(char const *s, unsigned int start, size_t len)
+double vec3_length(t_vec3 vec)
 {
-	size_t			i;
-	char			*str;
-
-	i = -1;
-	if (!s)
-		return (0);
-	if (start >= strlen(s))
-	{
-		return (calloc(1, 1));
-	}
-	str = (char *)malloc(len + 1);
-	if (!str)
-		return (0);
-	while (++i < len)
-		str[i] = s[start + i];
-	str[i] = '\0';
-	return (str);
+    return sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
 }

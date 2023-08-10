@@ -1,25 +1,21 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   parser_utils.c                                     :+:      :+:    :+:   */
+/*   vec3_norm.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: hahadiou <hahadiou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2023/05/14 15:52:41 by hahadiou          #+#    #+#             */
-/*   Updated: 2023/05/25 20:23:34 by hahadiou         ###   ########.fr       */
+/*   Created: 2023/08/10 10:36:05 by hahadiou          #+#    #+#             */
+/*   Updated: 2023/08/10 10:36:17 by hahadiou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 # include "minirt.h"
 
-char    *trim_newline(char* s)
+t_vec3	vec3_norm(t_vec3 a)
 {
-    char    *end;
+	double	alpha;
 
-    end = s + strlen(s) - 1;
-    while (end > s && *end == '\n') 
-    {
-        *end-- = '\0';
-    }
-    return (s);
+	alpha = 1.0 / sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+	return ((t_vec3){alpha * a.x, alpha * a.y, alpha * a.z});
 }

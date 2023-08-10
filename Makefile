@@ -6,7 +6,7 @@
 #    By: hahadiou <hahadiou@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/05/08 17:11:01 by hahadiou          #+#    #+#              #
-#    Updated: 2023/08/07 17:03:34 by hahadiou         ###   ########.fr        #
+#    Updated: 2023/08/10 10:51:57 by hahadiou         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -56,7 +56,7 @@ bonus: $(NAMEB)
 $(NAME): $(OBJ)
 	@echo "$(YELLOW)Compiling Utils...$(NOC)"
 	@echo "$(YELLOW)Compiling miniRT...$(NOC)"
-	@$(CC) $(FLAGS) $(LIBMLX) -Iinclude -lglfw -L"/Users/hahadiou/goinfre/homebrew/opt/glfw/lib" src/libft.a -o $@ $^
+	@$(CC) $(FLAGS) $(LIBMLX) -Iinclude -lglfw -L"/Users/hahadiou/goinfre/homebrew/opt/glfw/lib" libft.a -o $@ $^
 	@echo "$(GREEN)$@$(NOC)"
 
 $(OBJ_PATH)/%.o: $(SRC_PATH)/%.c $(INC)/minirt.h

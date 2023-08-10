@@ -1,34 +1,22 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   ft_substr.c                                        :+:      :+:    :+:   */
+/*   vec3_to_rgb.c                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: hahadiou <hahadiou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2022/09/29 18:13:53 by hahadiou          #+#    #+#             */
-/*   Updated: 2023/08/10 10:52:36 by hahadiou         ###   ########.fr       */
+/*   Created: 2023/08/10 10:39:57 by hahadiou          #+#    #+#             */
+/*   Updated: 2023/08/10 10:40:10 by hahadiou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "utils.h"
+# include "minirt.h"
 
-char	*ft_substr(char const *s, unsigned int start, size_t len)
+int	vec3_to_rgb(t_vec3 color)
 {
-	size_t			i;
-	char			*str;
-
-	i = -1;
-	if (!s)
-		return (0);
-	if (start >= strlen(s))
-	{
-		return (calloc(1, 1));
-	}
-	str = (char *)malloc(len + 1);
-	if (!str)
-		return (0);
-	while (++i < len)
-		str[i] = s[start + i];
-	str[i] = '\0';
-	return (str);
+    int r = (int)(255.999 * color.x);
+    int g = (int)(255.999 * color.y);
+    int b = (int)(255.999 * color.z);
+    
+    return (0x000000ff | r << 24 | g << 16 | b << 8);
 }

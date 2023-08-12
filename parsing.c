@@ -6,7 +6,7 @@
 /*   By: hahadiou <hahadiou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/07/24 11:48:56 by hahadiou          #+#    #+#             */
-/*   Updated: 2023/08/12 05:02:31 by hahadiou         ###   ########.fr       */
+/*   Updated: 2023/08/12 07:04:12 by hahadiou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -248,11 +248,11 @@ void	stod(char *s, double *res)
 		i++;
 	while (s[i])
 	{
-		if (!ft_isdigit(s[i]) && s[i] != '.')
-		{
-			dprintf(2, "Inv Number\n");
-			exit (1);
-		}
+		// if (!ft_isdigit(s[i]) && s[i] != '.')
+		// {
+		// 	dprintf(2, "Inv Number\n");
+		// 	exit (1);
+		// }
 		i++;
 	}
 	*res = atof(s);
@@ -506,7 +506,7 @@ void	parse_ids(t_scene *scene, char **split)
 	else if (!strcmp(split[0], "cy"))
 		parse_cylinder(scene, split);
 	else
-		dprintf(2, "Invalid Id\n");
+		dprintf(2, "Invalid Id %s\n", split[0]);
 }
 
 int	parse_scene(t_scene *scene, char *filename)
@@ -680,7 +680,7 @@ t_vec3 shade_object(t_scene *scene, t_light *light, t_vec3 hit_point, t_vec3 sur
 	// shading.z *= scene->light.color.z;
 
 
-    return shading;
+    return (shading);
 }
 double intersect_spheres(t_sphere *sphere, t_vec3 ray_origin, t_vec3 ray_dir)
 {
@@ -780,6 +780,41 @@ t_vec3 shade_cylinder(t_scene *scene, t_light *light, t_vec3 hit_point, t_vec3 r
     t_vec3 shading = shade_object(scene, light, hit_point, surface_normal, ray_dir);
     return (shading);
 }
+double intersect_cylinders(t_cylinder *cylinder, t_vec3 ray_origin, t_vec3 ray_dir)
+{
+    double closest_t = -1.0;
+    while (cylinder != NULL)
+    {
+        t_vec3 oc = vec3_sub(ray_origin, cylinder->center);
+        double a = vec3_dot(ray_dir, ray_dir) - pow(vec3_dot(ray_dir, cylinder->axis), 2);
+        double b = 2 * (vec3_dot(oc, ray_dir) - vec3_dot(oc, cylinder->axis) * vec3_dot(ray_dir, cylinder->axis));
+        double c = vec3_dot(oc, oc) - pow(vec3_dot(oc, cylinder->axis), 2) - pow(cylinder->diameter / 2.0, 2);
+
+        double discriminant = b * b - 4 * a * c;
+
+        if (discriminant >= 0)
+        {
+            double t1 = (-b + sqrt(discriminant)) / (2.0 * a);
+            double t2 = (-b - sqrt(discriminant)) / (2.0 * a);
+            double t = fmin(t1, t2);
+
+            // Check if the intersection point is within the height of the cylinder
+            t_vec3 intersection_point = vec3_add(ray_origin, vec3_scale(ray_dir, t));
+            t_vec3 distance_vector = vec3_sub(intersection_point, cylinder->center);
+            double height_projection = vec3_dot(distance_vector, cylinder->axis);
+            
+            if (t > 0 && height_projection >= 0 && height_projection <= cylinder->height)
+            {
+                if (closest_t < 0 || t < closest_t)
+                    closest_t = t;
+            }
+        }
+
+        cylinder = cylinder->next;
+    }
+    
+    return closest_t;
+}
 
 void render_scene(t_scene *scene)
 {
@@ -806,19 +841,6 @@ void render_scene(t_scene *scene)
             // Cast the ray from camera position and check intersection with the sphere
             double t = intersect_objects(scene, scene->cam.pos, ray_dir);
 			double t_plane = intersect_objects2(scene, scene->cam.pos, ray_dir);
-			// Cast the ray from the camera position and check intersection with the plane
-            // double t_plane = intersect_plane(&scene->plane, scene->cam.pos, ray_dir);
-            // if (t > 0)
-				// printf("t---->%f\n", t);
-			// Cast the ray from camera position and check intersection with the cylinder
-            // double t_cylinder = intersect_cylinder(&scene->cylinder, scene->cam.pos, ray_dir);
-            // if (t_cylinder >= 0)
-			// {
-            //     // Intersection with the cylinder occurred, set pixel color using shading function
-            //     t_vec3 hit_point = vec3_add(scene->cam.pos, vec3_scale(ray_dir, t_cylinder));
-            //     t_vec3 shading = shade_cylinder(scene, &scene->light, hit_point, ray_dir);
-            //     mlx_put_pixel(image, x, y, vec3_to_rgb(shading));
-			// }
 			if (t > 0 )
             {
 				 // Intersection occurred, set pixel color to the object's shading
@@ -832,7 +854,7 @@ void render_scene(t_scene *scene)
 			{
 				// Intersection with a plane occurred, set pixel color using shading function
                 t_vec3 hit_point = vec3_add(scene->cam.pos, vec3_scale(ray_dir, t_plane));
-                t_vec3 surface_normal = scene->plane.normal; // Plane's normal is its surface normal
+                t_vec3 surface_normal = scene->object.pl_lst->normal; // Plane's normal is its surface normal
                 t_vec3 shading = shade_with_spot_lights(scene, hit_point, surface_normal, ray_dir);
                 mlx_put_pixel(image, x, y, vec3_to_rgb(shading));
 			}

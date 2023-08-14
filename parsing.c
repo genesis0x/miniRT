@@ -6,7 +6,7 @@
 /*   By: hahadiou <hahadiou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/07/24 11:48:56 by hahadiou          #+#    #+#             */
-/*   Updated: 2023/08/12 07:04:12 by hahadiou         ###   ########.fr       */
+/*   Updated: 2023/08/14 01:22:15 by hahadiou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -475,6 +475,7 @@ void	parse_plane(t_scene *scene, char **split)
 	parse_vec3(split[1], &(new_plane->point));
 	parse_vec3(split[2], &(new_plane->normal));
 	parse_color(split[3], &(new_plane->color));
+	printf("ooooooooooo%fooooooooooooooooo\n", new_plane->color.x);
 	new_plane->set = true;
 	add_plane_to_back(&(scene->object.pl_lst), new_plane);
 }
@@ -674,12 +675,6 @@ t_vec3 shade_object(t_scene *scene, t_light *light, t_vec3 hit_point, t_vec3 sur
     // Combine ambient and diffuse lighting for shading
     t_vec3 shading = vec3_add(ambient, diffuse);
 
-    // Combine shading with the light color
-    // shading.x *= scene->light.color.x;
-	// shading.y *= scene->light.color.y;
-	// shading.z *= scene->light.color.z;
-
-
     return (shading);
 }
 double intersect_spheres(t_sphere *sphere, t_vec3 ray_origin, t_vec3 ray_dir)
@@ -705,81 +700,9 @@ double intersect_planes(t_plane *plane, t_vec3 ray_origin, t_vec3 ray_dir)
             closest_t = t;
         plane = plane->next;
     }
-    return closest_t;
-}
-double intersect_objects(t_scene *scene, t_vec3 ray_origin, t_vec3 ray_dir)
-{
-    double t_sphere = intersect_spheres(scene->object.sp_lst, ray_origin, ray_dir);
-    double t_plane = intersect_planes(scene->object.pl_lst, ray_origin, ray_dir);
-
-    double closest_t = -1.0;
-
-    if (t_sphere > 0 && (closest_t < 0 || t_sphere < closest_t))
-        closest_t = t_sphere;
-
-    if (t_plane > 0 && (closest_t < 0 || t_plane < closest_t))
-        closest_t = t_plane;
-
-    return t_sphere;
+    return (closest_t);
 }
 
-t_vec3 shade_with_spot_lights(t_scene *scene, t_vec3 hit_point, t_vec3 plane_normal, t_vec3 ray_dir) {
-    t_vec3 shading = (t_vec3){0, 0, 0};
-
-    // Loop through the linked list of lights
-    t_light *current_light = scene->light;
-    while (current_light != NULL) {
-        if (current_light->set) {
-            // Calculate light direction and distance to the light source
-            t_vec3 light_dir = vec3_norm(vec3_sub(current_light->pos, hit_point));
-            double light_distance = vec3_length(vec3_sub(current_light->pos, hit_point));
-
-            // Check for shadows by casting a ray from the hit point to the light source
-            bool in_shadow = false;
-            t_vec3 shadow_ray_origin = vec3_add(hit_point, vec3_scale(plane_normal, 0.001)); // Slightly offset to avoid self-intersection
-            double shadow_t = intersect_objects(scene, shadow_ray_origin, light_dir);
-
-            if (shadow_t > 0 && shadow_t < light_distance) {
-                in_shadow = true;
-            }
-
-            if (!in_shadow) {
-                // Calculate ambient and diffuse lighting components
-                t_vec3 ambient = color_scale(scene->amb.brightness, scene->amb.color);
-                t_vec3 diffuse = color_scale(current_light->ratio * fmax(0.0, vec3_dot(plane_normal, light_dir)), current_light->color);
-
-                // Calculate specular lighting component
-                t_vec3 view_dir = vec3_norm(vec3_scale(ray_dir, -1));
-                t_vec3 reflection_dir = vec3_norm(vec3_sub(vec3_scale(plane_normal, 2.0 * vec3_dot(light_dir, plane_normal)), light_dir));
-                double specular = pow(fmax(vec3_dot(reflection_dir, view_dir), 0.0), 32.0);
-                t_vec3 specular_color = color_scale(specular, current_light->color);
-
-                // Combine ambient, diffuse, and specular lighting for shading
-                t_vec3 light_shading = vec3_add(ambient, vec3_add(diffuse, specular_color));
-
-                // Add this light's shading contribution to the overall shading
-                shading = vec3_add(shading, light_shading);
-            }
-        }
-
-        current_light = current_light->next; // Move to the next light
-    }
-
-    return shading;
-}
-
-t_vec3 calculate_surface_normal(t_scene *scene, t_vec3 hit_point)
-{
-    t_vec3 surface_normal = vec3_sub(hit_point, scene->object.sp_lst->center);
-    return vec3_norm(surface_normal);
-}
-
-// Function to shade the cylinder object
-t_vec3 shade_cylinder(t_scene *scene, t_light *light, t_vec3 hit_point, t_vec3 ray_dir) {
-    t_vec3 surface_normal = vec3_norm(vec3_sub(hit_point, scene->cylinder.center));
-    t_vec3 shading = shade_object(scene, light, hit_point, surface_normal, ray_dir);
-    return (shading);
-}
 double intersect_cylinders(t_cylinder *cylinder, t_vec3 ray_origin, t_vec3 ray_dir)
 {
     double closest_t = -1.0;
@@ -816,6 +739,87 @@ double intersect_cylinders(t_cylinder *cylinder, t_vec3 ray_origin, t_vec3 ray_d
     return closest_t;
 }
 
+double intersect_objects(t_scene *scene, t_vec3 ray_origin, t_vec3 ray_dir)
+{
+    double t_sphere = intersect_spheres(scene->object.sp_lst, ray_origin, ray_dir);
+    double t_plane = intersect_planes(scene->object.pl_lst, ray_origin, ray_dir);
+    double t_cylinder = intersect_cylinders(scene->object.cy_lst, ray_origin, ray_dir);
+
+    double closest_t = -1.0;
+
+    if (t_sphere > 0 && (closest_t < 0 || t_sphere < closest_t))
+        closest_t = t_sphere;
+
+    if (t_plane > 0 && (closest_t < 0 || t_plane < closest_t))
+        closest_t = t_plane;
+
+    if (t_cylinder > 0 && (closest_t < 0 || t_cylinder < closest_t))
+        closest_t = t_cylinder;
+
+    return (closest_t);
+}
+
+
+t_vec3 shade_with_spot_lights(t_scene *scene, t_vec3 hit_point, t_vec3 plane_normal, t_vec3 ray_dir) {
+    t_vec3 shading = (t_vec3){0, 0, 0};
+
+    // Loop through the linked list of lights
+    t_light *current_light = scene->light;
+    while (current_light != NULL) {
+        if (current_light->set)
+		{
+            // Calculate light direction and distance to the light source
+            t_vec3 light_dir = vec3_norm(vec3_sub(current_light->pos, hit_point));
+            double light_distance = vec3_length(vec3_sub(current_light->pos, hit_point));
+
+            // Check for shadows by casting a ray from the hit point to the light source
+            bool in_shadow = false;
+            t_vec3 shadow_ray_origin = vec3_add(hit_point, vec3_scale(plane_normal, 0.001)); // Slightly offset to avoid self-intersection
+            double shadow_t = intersect_objects(scene, shadow_ray_origin, light_dir);
+
+            if (shadow_t > 0 && shadow_t < light_distance) {
+                in_shadow = true;
+            }
+
+            if (!in_shadow) {
+                // Calculate ambient and diffuse lighting components
+                t_vec3 ambient = color_scale(scene->amb.brightness, scene->amb.color);
+                t_vec3 diffuse = color_scale(current_light->ratio * fmax(0.0, vec3_dot(plane_normal, light_dir)), current_light->color);
+
+                // Calculate specular lighting component
+                t_vec3 view_dir = vec3_norm(vec3_scale(ray_dir, -1));
+                t_vec3 reflection_dir = vec3_norm(vec3_sub(vec3_scale(plane_normal, 2.0 * vec3_dot(light_dir, plane_normal)), light_dir));
+                double specular = pow(fmax(vec3_dot(reflection_dir, view_dir), 0.0), 32.0);
+                t_vec3 specular_color = color_scale(specular, current_light->color);
+
+                // Combine ambient, diffuse, and specular lighting for shading
+                t_vec3 light_shading = vec3_add(ambient, vec3_add(diffuse, specular_color));
+
+                // Add this light's shading contribution to the overall shading
+                shading = vec3_add(shading, light_shading);
+            }
+        }
+        current_light = current_light->next; // Move to the next light
+    }
+
+    return (shading);
+}
+
+t_vec3 calculate_surface_normal(t_scene *scene, t_vec3 hit_point)
+{
+    t_vec3 surface_normal = vec3_sub(hit_point, scene->object.sp_lst->center);
+    return vec3_norm(surface_normal);
+}
+
+// Function to shade the cylinder object
+t_vec3 shade_cylinder(t_scene *scene, t_light *light, t_vec3 hit_point, t_vec3 ray_dir) {
+    t_vec3 surface_normal = vec3_norm(vec3_sub(hit_point, scene->cylinder.center));
+    t_vec3 shading = shade_object(scene, light, hit_point, surface_normal, ray_dir);
+    return (shading);
+}
+
+
+
 void render_scene(t_scene *scene)
 {
 	printf("----------------<Rendering Scene>----------------\n");	
@@ -839,8 +843,9 @@ void render_scene(t_scene *scene)
             t_vec3 ray_dir = vec3_norm((t_vec3){ray_x, ray_y, -1.0}); // Assuming camera looks towards -Z
 
             // Cast the ray from camera position and check intersection with the sphere
-            double t = intersect_objects(scene, scene->cam.pos, ray_dir);
-			double t_plane = intersect_objects2(scene, scene->cam.pos, ray_dir);
+            double t = intersect_spheres(scene->object.sp_lst, scene->cam.pos, ray_dir);;//intersect_objects(scene, scene->cam.pos, ray_dir);
+			double t_plane = intersect_planes(scene->object.pl_lst, scene->cam.pos, ray_dir);//intersect_objects2(scene, scene->cam.pos, ray_dir);
+			double	t_cylinder = intersect_cylinders(scene->object.cy_lst, scene->cam.pos, ray_dir);
 			if (t > 0 )
             {
 				 // Intersection occurred, set pixel color to the object's shading
@@ -858,9 +863,16 @@ void render_scene(t_scene *scene)
                 t_vec3 shading = shade_with_spot_lights(scene, hit_point, surface_normal, ray_dir);
                 mlx_put_pixel(image, x, y, vec3_to_rgb(shading));
 			}
+			else if (t_cylinder >= 0)
+			{
+				t_vec3 hit_point = vec3_add(scene->cam.pos, vec3_scale(ray_dir, t));
+                t_vec3 surface_normal = calculate_surface_normal(scene, hit_point);
+				t_vec3 shading = shade_with_spot_lights(scene, hit_point, surface_normal, ray_dir);
+
+                mlx_put_pixel(image, x, y, vec3_to_rgb(shading));
+			}
 			else
 			{
-				// mlx_put_pixel(image, x, y, vec3_to_rgb((t_vec3){.x=255, .y=255, .z=255}));
 				mlx_put_pixel(image, x, y, vec3_to_rgb(scene->amb.color));
 			}
         }
